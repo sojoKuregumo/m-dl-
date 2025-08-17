@@ -9,18 +9,10 @@ from llyod import app, logger
 from llyod.config import SAUCE_KEY
 from telethon.tl.custom.button import Button
 from telethon.tl.custom.message import Message
-from pysaucenao.containers import TwitterSource
-from pysaucenao import (
-    SauceNao,
-    PixivSource,
-    AnimeSource,
-    MangaSource,
-    VideoSource,
-    BooruSource,
-)
+from pysaucenao import SauceNao
 
 saucenao = SauceNao(api_key=SAUCE_KEY, min_similarity=60, results_limit=2)
-media_types = (".jpeg", ".jpg", ".png", ".gif", ".webp")
+media_types = (".jpeg", ".jpg", ".png", ".gif", ".webp", ".mp4")
 
 
 @app.on(
@@ -39,198 +31,74 @@ async def get_sauce(event: Message):
                     os.remove(media)
                     media = new_media
             except:
-                await event.reply(
-                    "Reply to an image or send an url with it. eg. `/sauce <image url>`"
-                )
+                await event.reply("Reply to an image or send an url with it. eg. `/sauce <image url>`")
                 return
         else:
-            await event.reply(
-                "Reply to an image or send an url with it. eg. `/sauce <image url>`"
-            )
+            await event.reply("Reply to an image or send an url with it. eg. `/sauce <image url>`")
             return
 
     elif len(args) == 2:
         if args[1].endswith(media_types):
             media = args[1]
         else:
-            await event.reply(
-                "Reply to an image or send an url with it. eg. `/sauce <image url>`"
-            )
+            await event.reply("Reply to an image or send an url with it. eg. `/sauce <image url>`")
             return
     else:
-        await event.reply(
-            "Reply to an image or send an url with it. eg. `/sauce <image url>`"
-        )
+        await event.reply("Reply to an image or send an url with it. eg. `/sauce <image url>`")
         return
 
     tm = await event.reply("`Searching for sauce...🍝`")
     msg = ""
     btns = []
+
     try:
         if os.path.isfile(media):
-            sauce = await saucenao.from_file(media)
+            results = await saucenao.from_file(media)
         else:
-            sauce = await saucenao.from_url(media)
+            results = await saucenao.from_url(media)
 
-        if sauce.results:
-            result = sauce.results[0]
-            if isinstance(result, PixivSource):
-                msg += f"**{result.title}**\n\n"
-                msg += f"**Artist:** `{result.author_name}`\n"
-                if "characters" in result.data:
-                    msg += f"**Characters:** `{result.characters}`\n"
-                if "material" in result.data:
-                    msg += f"**Material:** `{result.material}`\n"
-                if urls := result.urls:
-                    for url in urls:
-                        url_name = re.search(r"https://(.*?)/", url)
-                        names = url_name.group(1).split(".")
-                        name = (
-                            names[1]
-                            if len(names) > 2 and names[0] == "www"
-                            else names[0]
-                        )
-                        btns.append(
-                            Button.url(
-                                name.replace("yande", "yandere").capitalize(), url
-                            )
-                        )
+        if results:
+            result = results[0]  # take the top result
+            msg += f"**Title:** {result.title or 'Unknown'}\n"
+            msg += f"**Similarity:** `{result.similarity}%`\n"
 
-            elif isinstance(result, AnimeSource):
-                msg += f"**{result.title} - Ep. {result.episode}**\n\n"
-                msg += f"**Est. Time:** `{result.timestamp}`\n"
-                msg += f"**year:** `{result.year}`\n"
-                if urls := result.urls:
-                    for url in urls:
+            if result.author_name:
+                msg += f"**Author/Artist:** `{result.author_name}`\n"
+
+            if hasattr(result, "episode") and result.episode:
+                msg += f"**Episode:** {result.episode}\n"
+            if hasattr(result, "year") and result.year:
+                msg += f"**Year:** {result.year}\n"
+            if hasattr(result, "timestamp") and result.timestamp:
+                msg += f"**Timestamp:** {result.timestamp}\n"
+
+            if result.urls:
+                for url in result.urls:
+                    url_name = re.search(r"https://(.*?)/", url)
+                    names = url_name.group(1).split(".")
+                    name = (
+                        names[1] if len(names) > 2 and names[0] == "www" else names[0]
+                    )
+                    btns.append(Button.url(name.replace("yande", "yandere").capitalize(), url))
+
+            # optional: check for second best match
+            if len(results) > 1:
+                second = results[1]
+                if second.similarity >= 80 and second.urls:
+                    msg += f"\n**Alt match:** {second.title or 'Unknown'} ({second.similarity}%)"
+                    for url in second.urls:
                         url_name = re.search(r"https://(.*?)/", url)
                         names = url_name.group(1).split(".")
                         name = (
-                            names[1]
-                            if len(names) > 2 and names[0] == "www"
-                            else names[0]
+                            names[1] if len(names) > 2 and names[0] == "www" else names[0]
                         )
-                        btns.append(
-                            Button.url(
-                                name.replace("yande", "yandere").capitalize(), url
-                            )
-                        )
-            elif isinstance(result, MangaSource):
-                msg += f"**Title: {result.title} {result.chapter}**\n\n"
-                msg += f"**Author:** `{result.author_name}`\n"
-                if urls := result.urls:
-                    for url in urls:
-                        url_name = re.search(r"https://(.*?)/", url)
-                        names = url_name.group(1).split(".")
-                        name = (
-                            names[1]
-                            if len(names) > 2 and names[0] == "www"
-                            else names[0]
-                        )
-                        btns.append(
-                            Button.url(
-                                name.replace("yande", "yandere").capitalize(), url
-                            )
-                        )
-            elif isinstance(result, VideoSource):
-                msg += f"**{result.title} - Ep. {result.episode}**\n\n"
-                msg += f"**Est. Time:** `{result.timestamp}`\n"
-                msg += f"**year:** `{result.year}`\n"
-                if urls := result.urls:
-                    for url in urls:
-                        url_name = re.search(r"https://(.*?)/", url)
-                        names = url_name.group(1).split(".")
-                        name = (
-                            names[1]
-                            if len(names) > 2 and names[0] == "www"
-                            else names[0]
-                        )
-                        btns.append(
-                            Button.url(
-                                name.replace("yande", "yandere").capitalize(), url
-                            )
-                        )
-            elif isinstance(result, BooruSource):
-                msg += f"**{result.title}**\n\n"
-                msg += f"**Author:** `{result.author_name}`\n"
-                if urls := result.urls:
-                    for url in urls:
-                        url_name = re.search(r"https://(.*?)/", url)
-                        names = url_name.group(1).split(".")
-                        name = (
-                            names[1]
-                            if len(names) > 2 and names[0] == "www"
-                            else names[0]
-                        )
-                        btns.append(
-                            Button.url(
-                                name.replace("yande", "yandere").capitalize(), url
-                            )
-                        )
-            elif isinstance(result, TwitterSource):
-                msg += f"**{result.title}**\n\n"
-                msg += f"**Author:** `{result.author_name}`\n"
-                if urls := result.urls:
-                    for url in urls:
-                        url_name = re.search(r"https://(.*?)/", url)
-                        names = url_name.group(1).split(".")
-                        name = (
-                            names[1]
-                            if len(names) > 2 and names[0] == "www"
-                            else names[0]
-                        )
-                        btns.append(
-                            Button.url(
-                                name.replace("yande", "yandere").capitalize(), url
-                            )
-                        )
-            else:
-                msg += f"**Title:** {result.title}\n\n"
-                # msg += f"**Author:** {result.data.get('author') if result.data.get('author') else result.data.get('artist')}\n"
-                if result.data.get("author"):
-                    msg += f"**Author:** {result.data.get('author')}\n"
-                else:
-                    msg += f"**Artist:** {result.data.get('artist')}\n"
-                if urls := result.urls:
-                    for url in urls:
-                        url_name = re.search(r"https://(.*?)/", url)
-                        names = url_name.group(1).split(".")
-                        name = (
-                            names[1]
-                            if len(names) > 2 and names[0] == "www"
-                            else names[0]
-                        )
-                        btns.append(
-                            Button.url(
-                                name.replace("yande", "yandere").capitalize(), url
-                            )
-                        )
-            if len(sauce.results) > 1:
-                second_result = sauce.results[1]
-                if isinstance(second_result, BooruSource):
-                    if second_result.similarity >= 80:
-                        msg += f"**Characters:** `{', '.join(second_result.characters) or 'Original'}`\n"
-                        msg += f"**Material:** `{', '.join(second_result.material) or 'None'}`"
-                        if urls := second_result.urls:
-                            for url in urls:
-                                url_name = re.search(r"https://(.*?)/", url)
-                                names = url_name.group(1).split(".")
-                                name = (
-                                    names[1]
-                                    if len(names) > 2 and names[0] == "www"
-                                    else names[0]
-                                )
-                                btns.append(
-                                    Button.url(
-                                        name.replace("yande", "yandere").capitalize(),
-                                        url,
-                                    )
-                                )
+                        btns.append(Button.url(name.capitalize(), url))
         else:
             msg += "**No results found.**"
 
-    except Exception as e:
+    except Exception:
         logger.error(traceback.format_exc())
-        msg += f"**Error:** `API ERROR TRY AGAIN LATER`"
+        msg += "**Error:** `API ERROR TRY AGAIN LATER`"
 
     if btns:
         await tm.edit(msg, buttons=btns)
