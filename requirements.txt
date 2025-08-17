@@ -4,3 +4,4 @@ pysaucenao
 cryptg
 pillow
 markdown
+cloudscraper
