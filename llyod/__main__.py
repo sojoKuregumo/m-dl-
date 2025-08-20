@@ -1,5 +1,9 @@
 from llyod import app
-from llyod.modules import *
+from llyod.modules import browse
+from llyod.modules import start
+from llyod.modules import download
+# (add other modules you still want)
+
 from telethon import events, tl
 from telethon.tl.custom.button import Button
 from telethon.tl.custom.message import Message
