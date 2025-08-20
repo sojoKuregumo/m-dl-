@@ -1,6 +1,6 @@
 from llyod import app
 from llyod.modules import browse
-from llyod.modules import start
+from llyod.modules import browse, mal, mangadex, mangaupdates, novels, wnovels, comic_api, comick, dex, inline, tools
 from llyod.modules import download
 # (add other modules you still want)
 
