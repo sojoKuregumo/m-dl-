@@ -4,3 +4,4 @@ cryptg>=0.5.1
 pillow>=11.0.0
 markdown>=3.8.0
 cloudscraper>=1.2.71
+pysaucenao
